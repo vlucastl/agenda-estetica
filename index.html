@@ -72,8 +72,22 @@
                 <button onclick="logout()" class="text-red-500 underline text-xs md:text-sm">Sair</button>
             </div>
         </header>
-        <div class="bg-white shadow-xl rounded-xl p-2 md:p-4">
+
+        <div class="flex gap-2 mb-4">
+            <button onclick="switchTab('agenda')" id="tabAgenda" class="bg-pink-600 text-white px-4 py-2 rounded-lg font-bold shadow-md">📅 Agenda</button>
+            <button onclick="switchTab('financeiro')" id="tabFinance" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold shadow-md">💰 Financeiro</button>
+        </div>
+
+        <div id="agendaSection" class="bg-white shadow-xl rounded-xl p-2 md:p-4">
             <div id="calendar"></div>
+        </div>
+
+        <div id="financeSection" class="hidden space-y-4">
+            <div class="bg-white p-4 md:p-6 rounded-xl shadow-md">
+                <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Resumo da Semana (Concluídos)</h2>
+                <div id="financeList" class="divide-y">
+                    </div>
+            </div>
         </div>
     </div>
 
@@ -84,8 +98,9 @@
                 <label class="block text-sm font-medium">Profissional</label>
                 <select id="profSelect" class="w-full border rounded p-2 bg-gray-50 focus:ring-2 focus:ring-pink-500 outline-none"></select>
                 <input type="text" id="service" placeholder="Serviço / Cliente" class="w-full border rounded p-2 focus:ring-2 focus:ring-pink-500 outline-none">
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-3 gap-2">
                     <input type="number" id="price" placeholder="Valor R$" class="w-full border rounded p-2 focus:ring-2 focus:ring-pink-500 outline-none">
+                    <input type="number" id="percentage" placeholder="Comissão %" class="w-full border rounded p-2 focus:ring-2 focus:ring-pink-500 outline-none">
                     <select id="duration" class="w-full border rounded p-2">
                         <option value="30">30 min</option>
                         <option value="60">1 hora</option>
@@ -120,6 +135,7 @@
                 <p><strong>Prof:</strong> <span id="detProf"></span></p>
                 <p><strong>Serviço:</strong> <span id="detService"></span></p>
                 <p><strong>Valor:</strong> R$ <span id="detPrice"></span></p>
+                <p><strong>Comissão:</strong> <span id="detPercentage"></span>%</p>
                 <p><strong>Duração:</strong> <span id="detDuration"></span> min</p>
                 <p><strong>Início:</strong> <span id="detStart"></span></p>
                 <div class="p-3 bg-pink-50 rounded-lg border-l-4 border-pink-600">
@@ -163,7 +179,7 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
         let calendar;
-        window.selectedEventId = null; // Mudança aqui para escopo global
+        window.selectedEventId = null;
         let userData = {};
         const presetColors = ['#db2777', '#2563eb', '#10b981', '#f59e0b', '#7c3aed', '#dc2626', '#0891b2', '#4b5563', '#1e293b', '#000000'];
 
@@ -173,6 +189,76 @@
             if (pass.type === 'password') { pass.type = 'text'; icon.innerText = '🙈'; }
             else { pass.type = 'password'; icon.innerText = '👁️'; }
         };
+
+        window.switchTab = (tab) => {
+            const agenda = document.getElementById('agendaSection');
+            const finance = document.getElementById('financeSection');
+            const btnAgenda = document.getElementById('tabAgenda');
+            const btnFinance = document.getElementById('tabFinance');
+
+            if (tab === 'agenda') {
+                agenda.classList.remove('hidden');
+                finance.classList.add('hidden');
+                btnAgenda.className = "bg-pink-600 text-white px-4 py-2 rounded-lg font-bold shadow-md";
+                btnFinance.className = "bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold shadow-md";
+                if(calendar) calendar.render();
+            } else {
+                agenda.classList.add('hidden');
+                finance.classList.remove('hidden');
+                btnFinance.className = "bg-pink-600 text-white px-4 py-2 rounded-lg font-bold shadow-md";
+                btnAgenda.className = "bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold shadow-md";
+                calculateFinance();
+            }
+        };
+
+        async function calculateFinance() {
+            const list = document.getElementById('financeList');
+            list.innerHTML = '<p class="p-4 text-center text-gray-500 animate-pulse">Calculando recebimentos da semana...</p>';
+
+            const today = new Date();
+            const startOfWeek = new Date(today);
+            startOfWeek.setDate(today.getDate() - today.getDay());
+            startOfWeek.setHours(0, 0, 0, 0);
+
+            const q = query(collection(db, "appointments"), where("status", "==", "concluido"));
+            const snap = await getDocs(q);
+            
+            let totals = {};
+
+            snap.forEach(doc => {
+                const d = doc.data();
+                const eventDate = new Date(d.start);
+                if (eventDate >= startOfWeek) {
+                    if (!totals[d.prof]) totals[d.prof] = { bruto: 0, comissao: 0 };
+                    const valor = parseFloat(d.price) || 0;
+                    const perc = parseFloat(d.percentage) || 0;
+                    totals[d.prof].bruto += valor;
+                    totals[d.prof].comissao += (valor * (perc / 100));
+                }
+            });
+
+            list.innerHTML = "";
+            const keys = Object.keys(totals);
+            if (keys.length === 0) {
+                list.innerHTML = "<p class='p-6 text-center text-gray-400'>Nenhum serviço concluído nesta semana.</p>";
+                return;
+            }
+
+            keys.forEach(prof => {
+                list.innerHTML += `
+                    <div class="flex justify-between items-center py-4 px-2">
+                        <div>
+                            <p class="font-bold text-gray-800 text-lg">${prof}</p>
+                            <p class="text-sm text-gray-500">Total Bruto: R$ ${totals[prof].bruto.toFixed(2)}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-green-600 font-bold text-xl">R$ ${totals[prof].comissao.toFixed(2)}</p>
+                            <p class="text-[10px] uppercase text-gray-400 font-extrabold tracking-wider">A Receber</p>
+                        </div>
+                    </div>
+                `;
+            });
+        }
 
         function renderColorPalette() {
             const palette = document.getElementById('colorPalette');
@@ -224,24 +310,15 @@
         function initCalendar() {
             const el = document.getElementById('calendar');
             if (!el || calendar) return;
-
             const isMobile = window.innerWidth < 768;
-            
             calendar = new FullCalendar.Calendar(el, {
                 initialView: isMobile ? 'timeGridDay' : 'timeGridWeek',
                 headerToolbar: {
-                    left: 'prev,next today',
-                    center: 'title',
+                    left: 'prev,next today', center: 'title',
                     right: isMobile ? 'timeGridDay,listWeek' : 'timeGridWeek,timeGridDay,listWeek'
                 },
-                locale: 'pt-br',
-                allDaySlot: false,
-                slotMinTime: '00:00:00',
-                slotMaxTime: '24:00:00',
-                scrollTime: '08:00:00',
-                height: 'auto',
-                selectable: true,
-                nowIndicator: true,
+                locale: 'pt-br', allDaySlot: false, slotMinTime: '00:00:00', slotMaxTime: '24:00:00',
+                scrollTime: '08:00:00', height: 'auto', selectable: true, nowIndicator: true,
                 select: (info) => { window.selectedEventId = null; openModal(info.startStr.slice(0, 16)); },
                 eventClick: (info) => { showDetails(info.event); }
             });
@@ -266,6 +343,7 @@
                             classNames: eventClasses
                         });
                     });
+                    if(document.getElementById('financeSection').classList.contains('hidden') === false) calculateFinance();
                 }
             });
         }
@@ -283,34 +361,26 @@
 
         window.openModal = (date = "") => {
             document.getElementById('bookingModal').style.display = 'flex';
-            
-            // Se for um NOVO registro (selectedEventId nulo), limpa os campos
             if (!window.selectedEventId) {
                 document.getElementById('service').value = "";
                 document.getElementById('price').value = "";
+                document.getElementById('percentage').value = "";
                 document.getElementById('modalTitle').innerText = "Agendar Serviço";
-                if (date) {
-                    document.getElementById('startTime').value = date;
-                } else {
-                    document.getElementById('startTime').value = "";
-                }
+                if (date) document.getElementById('startTime').value = date;
             } else {
                 document.getElementById('modalTitle').innerText = "Editar Agendamento";
             }
-            
             renderColorPalette();
         };
 
-        window.closeModal = () => { 
-            document.getElementById('bookingModal').style.display = 'none'; 
-            window.selectedEventId = null; 
-        };
+        window.closeModal = () => { document.getElementById('bookingModal').style.display = 'none'; window.selectedEventId = null; };
 
         function showDetails(event) {
             window.selectedEventId = event.id; const p = event.extendedProps;
             document.getElementById('detProf').innerText = p.prof;
             document.getElementById('detService').innerText = p.service;
             document.getElementById('detPrice').innerText = p.price || "0";
+            document.getElementById('detPercentage').innerText = p.percentage || "0";
             document.getElementById('detDuration').innerText = p.duration;
             document.getElementById('detStart').innerText = new Date(p.start).toLocaleString('pt-BR');
             document.getElementById('detCreatedBy').innerText = p.creatorName || "Desconhecido";
@@ -320,14 +390,22 @@
         window.closeDetailsModal = () => document.getElementById('detailsModal').style.display = 'none';
 
         window.updateStatus = async (status) => {
-            try { await updateDoc(doc(db, "appointments", window.selectedEventId), { status: status }); closeDetailsModal(); } catch (e) { alert(e.message); }
+            try { 
+                await updateDoc(doc(db, "appointments", window.selectedEventId), { status: status }); 
+                closeDetailsModal();
+                if(!document.getElementById('financeSection').classList.contains('hidden')) calculateFinance();
+            } catch (e) { alert(e.message); }
         };
 
         window.openEditFromDetails = () => {
             const event = calendar.getEventById(window.selectedEventId); const p = event.extendedProps;
-            document.getElementById('service').value = p.service; document.getElementById('price').value = p.price;
-            document.getElementById('profSelect').value = p.prof; document.getElementById('duration').value = p.duration;
-            document.getElementById('startTime').value = p.start; document.getElementById('eventColor').value = p.color || "#db2777";
+            document.getElementById('service').value = p.service; 
+            document.getElementById('price').value = p.price;
+            document.getElementById('percentage').value = p.percentage || "";
+            document.getElementById('profSelect').value = p.prof; 
+            document.getElementById('duration').value = p.duration;
+            document.getElementById('startTime').value = p.start; 
+            document.getElementById('eventColor').value = p.color || "#db2777";
             closeDetailsModal(); openModal();
         };
 
@@ -351,7 +429,9 @@
                 });
                 if (conflito) { alert("⚠️ Conflito de horário!"); return; }
                 const data = {
-                    prof, service: document.getElementById('service').value, price: document.getElementById('price').value,
+                    prof, service: document.getElementById('service').value, 
+                    price: document.getElementById('price').value,
+                    percentage: document.getElementById('percentage').value,
                     start: startStr, duration, color: document.getElementById('eventColor').value,
                     creatorName: userData.name, status: 'agendado'
                 };
