@@ -11,8 +11,24 @@
     <style>
         .modal-overlay { display: none; position: fixed; z-index: 999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
         #calendar { max-width: 1100px; margin: 0 auto; height: 80vh; }
-        .fc-event { cursor: pointer; border: none !important; padding: 2px; font-weight: bold; }
+        .fc-event { cursor: pointer; border: none !important; padding: 3px; font-weight: bold; border-radius: 4px; }
         #loadingScreen { position: fixed; inset: 0; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        
+        /* Estilo da Paleta de Cores */
+        .color-sq { 
+            width: 36px; 
+            height: 36px; 
+            border-radius: 6px; 
+            cursor: pointer; 
+            border: 3px solid transparent; 
+            transition: all 0.2s; 
+        }
+        .color-sq:hover { transform: scale(1.1); }
+        .color-sq.active { 
+            border-color: #000; 
+            transform: scale(1.1); 
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
@@ -20,7 +36,7 @@
     <div id="loadingScreen">
         <div class="text-pink-600 font-bold animate-pulse text-xl text-center">
             Sincronizando Agenda Coletiva...<br>
-            <span class="text-sm font-normal text-gray-400">Carregando cores e permissões...</span>
+            <span class="text-sm font-normal text-gray-400">Carregando cores por profissional...</span>
         </div>
     </div>
 
@@ -33,7 +49,7 @@
                 <input type="password" id="userPass" placeholder="Senha" class="w-full border p-3 rounded">
                 <button onclick="handleAuth('signup')" class="w-full bg-pink-600 text-white p-3 rounded font-bold">Criar Conta</button>
                 <button onclick="handleAuth('login')" class="w-full border border-pink-600 text-pink-600 p-3 rounded font-bold">Entrar</button>
-                <button onclick="loginWithGoogle()" class="w-full border p-3 rounded flex items-center justify-center gap-2">Entrar com Google</button>
+                <button onclick="loginWithGoogle()" class="w-full border p-3 rounded flex items-center justify-center gap-2 text-gray-600">Entrar com Google</button>
             </div>
         </div>
     </div>
@@ -53,22 +69,22 @@
 
     <div id="bookingModal" class="modal-overlay">
         <div class="bg-white rounded-lg p-8 w-full max-w-md shadow-2xl relative">
-            <h2 id="modalTitle" class="text-xl font-bold mb-4 border-b pb-2">Agendar Serviço</h2>
+            <h2 id="modalTitle" class="text-xl font-bold mb-4 border-b pb-2 text-gray-800">Agendar Serviço</h2>
             <div class="space-y-4">
-                <label class="block text-sm font-medium">Profissional Responsável</label>
-                <select id="profSelect" class="w-full border rounded p-2 bg-gray-50"></select>
+                <label class="block text-sm font-medium text-gray-700">Profissional Responsável</label>
+                <select id="profSelect" class="w-full border rounded p-2 bg-gray-50 focus:ring-2 focus:ring-pink-500 outline-none"></select>
                 
-                <label class="block text-sm font-medium">Serviço / Cliente</label>
-                <input type="text" id="service" class="w-full border rounded p-2" placeholder="Ex: Microagulhamento - Julia">
+                <label class="block text-sm font-medium text-gray-700">Serviço / Cliente</label>
+                <input type="text" id="service" class="w-full border rounded p-2 focus:ring-2 focus:ring-pink-500 outline-none">
                 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium">Valor R$</label>
-                        <input type="number" id="price" class="w-full border rounded p-2">
+                        <label class="block text-sm font-medium text-gray-700">Valor R$</label>
+                        <input type="number" id="price" class="w-full border rounded p-2 focus:ring-2 focus:ring-pink-500 outline-none">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium">Duração</label>
-                        <select id="duration" class="w-full border rounded p-2">
+                        <label class="block text-sm font-medium text-gray-700">Duração</label>
+                        <select id="duration" class="w-full border rounded p-2 focus:ring-2 focus:ring-pink-500 outline-none">
                             <option value="30">30 min</option>
                             <option value="60">1 hora</option>
                             <option value="90">1h 30m</option>
@@ -76,31 +92,33 @@
                         </select>
                     </div>
                 </div>
-                <label class="block text-sm font-medium">Data e Hora de Início</label>
-                <input type="datetime-local" id="startTime" class="w-full border rounded p-2">
+                
+                <label class="block text-sm font-medium text-gray-700">Horário de Início</label>
+                <input type="datetime-local" id="startTime" class="w-full border rounded p-2 focus:ring-2 focus:ring-pink-500 outline-none">
 
-                <label class="block text-sm font-medium">Cor de Identificação no Painel</label>
-                <input type="color" id="eventColor" class="w-full h-10 border rounded p-1 cursor-pointer">
+                <label class="block text-sm font-medium text-gray-700">Cor do Profissional no Painel</label>
+                <input type="hidden" id="eventColor" value="#db2777">
+                <div id="colorPalette" class="flex flex-wrap gap-3 mt-1"></div>
             </div>
-
-            <div class="mt-6 flex justify-between items-center border-t pt-4">
-                <button onclick="closeModal()" class="text-gray-500 px-4">Cancelar</button>
-                <button id="btnSaveMain" onclick="saveAppointment()" class="bg-pink-600 text-white px-6 py-2 rounded-lg font-bold">Salvar Agendamento</button>
+            
+            <div class="mt-6 flex justify-between gap-3 pt-4 border-t">
+                <button onclick="closeModal()" class="text-gray-500 px-4 font-medium">Cancelar</button>
+                <button id="btnSaveMain" onclick="saveAppointment()" class="bg-pink-600 text-white px-6 py-2 rounded-lg font-bold shadow-md hover:bg-pink-700 transition">Salvar Agendamento</button>
             </div>
         </div>
     </div>
 
     <div id="detailsModal" class="modal-overlay">
-        <div class="bg-white rounded-lg p-8 w-full max-w-md shadow-2xl relative">
-            <h2 class="text-xl font-bold mb-4 border-b pb-2 text-pink-600">Detalhes do Agendamento</h2>
+        <div class="bg-white rounded-lg p-8 w-full max-w-md shadow-2xl relative border-t-8 border-pink-600">
+            <h2 class="text-xl font-bold mb-4 border-b pb-2 text-gray-800">Detalhes do Agendamento</h2>
             <div class="space-y-3 text-gray-700">
-                <p><strong>Profissional:</strong> <span id="detProf" class="font-medium"></span></p>
-                <p><strong>Serviço/Cliente:</strong> <span id="detService" class="font-medium"></span></p>
-                <p><strong>Valor:</strong> R$ <span id="detPrice" class="font-medium"></span></p>
-                <p><strong>Duração:</strong> <span id="detDuration" class="font-medium"></span> min</p>
-                <p><strong>Horário:</strong> <span id="detStart" class="font-medium"></span></p>
-                <div class="p-3 bg-gray-50 rounded-lg mt-4 border-l-4 border-pink-500">
-                    <p class="text-sm"><strong>Registrado por:</strong> <span id="detCreatedBy" class="font-bold text-gray-900"></span></p>
+                <p><strong>Profissional:</strong> <span id="detProf"></span></p>
+                <p><strong>Serviço/Cliente:</strong> <span id="detService"></span></p>
+                <p><strong>Valor:</strong> R$ <span id="detPrice"></span></p>
+                <p><strong>Duração:</strong> <span id="detDuration"></span> min</p>
+                <p><strong>Horário:</strong> <span id="detStart"></span></p>
+                <div class="p-3 bg-pink-50 rounded-lg mt-4 border-l-4 border-pink-600">
+                    <p class="text-sm text-pink-800 font-medium">Registrado por: <span id="detCreatedBy" class="font-bold text-pink-900"></span></p>
                 </div>
             </div>
             <div class="mt-6 flex justify-between gap-3 pt-4 border-t">
@@ -113,16 +131,7 @@
         </div>
     </div>
 
-    <div id="confirmModal" class="modal-overlay" style="z-index: 1000;">
-        <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl text-center">
-            <div class="text-red-500 mb-4 text-4xl">⚠️</div>
-            <h3 class="text-xl font-bold mb-2">Excluir Registro?</h3>
-            <div class="flex justify-center gap-3 mt-4">
-                <button onclick="closeConfirmModal()" class="px-4 py-2 text-gray-500">Voltar</button>
-                <button onclick="executeDelete()" class="bg-red-500 text-white px-6 py-2 rounded-lg font-bold">Sim, Excluir</button>
-            </div>
-        </div>
-    </div>
+    <div id="confirmModal" class="modal-overlay" style="z-index: 1000;"><div class="bg-white rounded-lg p-6 w-full max-sm shadow-2xl text-center"><h3 class="text-xl font-bold mb-4">Excluir Registro?</h3><div class="flex justify-center gap-3"><button onclick="closeConfirmModal()" class="px-4 py-2">Voltar</button><button onclick="executeDelete()" class="bg-red-500 text-white px-6 py-2 rounded-lg font-bold">Sim, Excluir</button></div></div></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -145,36 +154,70 @@
         let calendar;
         let selectedEventId = null;
         let userData = {};
+        const presetColors = ['#db2777', '#2563eb', '#10b981', '#f59e0b', '#7c3aed', '#dc2626', '#0891b2', '#4b5563', '#1e293b', '#000000'];
+
+        function renderColorPalette() {
+            const palette = document.getElementById('colorPalette');
+            const currentColor = document.getElementById('eventColor').value;
+            palette.innerHTML = '';
+            presetColors.forEach(color => {
+                const div = document.createElement('div');
+                div.style.backgroundColor = color;
+                div.className = `color-sq ${currentColor === color ? 'active' : ''}`;
+                div.onclick = () => {
+                    document.getElementById('eventColor').value = color;
+                    renderColorPalette();
+                };
+                palette.appendChild(div);
+            });
+        }
 
         onAuthStateChanged(auth, async (user) => {
             const loader = document.getElementById('loadingScreen');
-            try {
-                if (user) {
-                    document.getElementById('authSection').classList.add('hidden');
-                    document.getElementById('appSection').classList.remove('hidden');
-                    
-                    const userDocRef = doc(db, "users", user.uid);
-                    const userDoc = await getDoc(userDocRef);
-                    if (!userDoc.exists()) {
-                        userData = { name: user.displayName || user.email.split('@')[0], email: user.email, lastColor: "#db2777" };
-                        await setDoc(userDocRef, userData);
-                    } else {
-                        userData = userDoc.data();
-                    }
-
-                    document.getElementById('displayUserName').innerText = userData.name;
-                    document.getElementById('eventColor').value = userData.lastColor || "#db2777";
-                    
-                    initCalendar();
-                    loadProfessionals();
-                    loadEvents();
-                } else {
-                    document.getElementById('authSection').classList.remove('hidden');
-                    document.getElementById('appSection').classList.add('hidden');
-                }
-            } catch (e) { console.error(e); }
-            finally { if(loader) loader.style.display = 'none'; }
+            if (user) {
+                document.getElementById('authSection').classList.add('hidden');
+                document.getElementById('appSection').classList.remove('hidden');
+                const userDocRef = doc(db, "users", user.uid);
+                const userDoc = await getDoc(userDocRef);
+                if (!userDoc.exists()) {
+                    userData = { name: user.displayName || user.email.split('@')[0], email: user.email };
+                    await setDoc(userDocRef, userData);
+                } else { userData = userDoc.data(); }
+                document.getElementById('displayUserName').innerText = userData.name;
+                initCalendar();
+                loadProfessionals();
+                loadEvents();
+            } else {
+                document.getElementById('authSection').classList.remove('hidden');
+                document.getElementById('appSection').classList.add('hidden');
+            }
+            if(loader) loader.style.display = 'none';
         });
+
+        // Sugestão de cor baseada no histórico do Profissional
+        async function suggestColorForProf(profName) {
+            if (!profName) return;
+            try {
+                const q = query(collection(db, "appointments"), where("prof", "==", profName));
+                const snap = await getDocs(q);
+                let lastColor = "";
+                let latestTime = 0;
+                snap.forEach(docSnap => {
+                    const d = docSnap.data();
+                    const dTime = new Date(d.start).getTime();
+                    if (dTime > latestTime) {
+                        latestTime = dTime;
+                        lastColor = d.color;
+                    }
+                });
+                if (lastColor) {
+                    document.getElementById('eventColor').value = lastColor;
+                    renderColorPalette();
+                }
+            } catch (e) { console.error("Erro ao sugerir cor:", e); }
+        }
+
+        document.getElementById('profSelect').addEventListener('change', (e) => suggestColorForProf(e.target.value));
 
         function initCalendar() {
             const el = document.getElementById('calendar');
@@ -223,12 +266,10 @@
             });
         }
 
-        // Funções de Modal
         window.openModal = (date = "") => {
             document.getElementById('bookingModal').style.display = 'flex';
-            document.getElementById('modalTitle').innerText = selectedEventId ? "Editar Agendamento" : "Novo Agendamento";
             if (date) document.getElementById('startTime').value = date;
-            document.getElementById('eventColor').value = userData.lastColor || "#db2777";
+            renderColorPalette();
         };
 
         window.closeModal = () => {
@@ -246,7 +287,7 @@
             document.getElementById('detPrice').innerText = p.price || "0";
             document.getElementById('detDuration').innerText = p.duration;
             document.getElementById('detStart').innerText = new Date(p.start).toLocaleString('pt-BR');
-            document.getElementById('detCreatedBy').innerText = p.creatorName || "Sistema (Antigo)";
+            document.getElementById('detCreatedBy').innerText = p.creatorName || "Desconhecido";
             document.getElementById('detailsModal').style.display = 'flex';
         }
 
@@ -269,17 +310,14 @@
             const btn = document.getElementById('btnSaveMain');
             const prof = document.getElementById('profSelect').value;
             const startStr = document.getElementById('startTime').value;
-            const color = document.getElementById('eventColor').value;
-            
-            if (!prof || !startStr) return alert("Selecione um profissional e o horário!");
+            if (!prof || !startStr) return alert("Selecione profissional e horário!");
             
             try {
                 btn.disabled = true;
-                const newStart = new Date(startStr);
                 const duration = parseInt(document.getElementById('duration').value);
+                const newStart = new Date(startStr);
                 const newEnd = new Date(newStart.getTime() + duration * 60000);
 
-                // Validação Coletiva de Conflito
                 const q = query(collection(db, "appointments"), where("prof", "==", prof));
                 const snap = await getDocs(q);
                 let conflito = false;
@@ -290,58 +328,44 @@
                     const exEnd = new Date(exStart.getTime() + d.duration * 60000);
                     if (newStart < exEnd && exStart < newEnd) conflito = true;
                 });
-
                 if (conflito) { alert("⚠️ Conflito! Este profissional já tem um serviço neste horário."); return; }
-
-                // Atualiza cor favorita do usuário no banco
-                await updateDoc(doc(db, "users", auth.currentUser.uid), { lastColor: color });
-                userData.lastColor = color;
 
                 const data = {
                     prof, 
                     service: document.getElementById('service').value, 
                     price: document.getElementById('price').value, 
                     start: startStr, 
-                    duration,
-                    color: color,
-                    createdBy: auth.currentUser.uid,
+                    duration, 
+                    color: document.getElementById('eventColor').value,
                     creatorName: userData.name
                 };
 
                 if (selectedEventId) await updateDoc(doc(db, "appointments", selectedEventId), data);
                 else await addDoc(collection(db, "appointments"), data);
-                
                 closeModal();
             } catch (e) { alert("Erro: " + e.message); } finally { btn.disabled = false; }
         };
 
-        // Auth e Outros
         window.handleAuth = async (type) => {
             const email = document.getElementById('userEmail').value;
             const pass = document.getElementById('userPass').value;
-            const name = document.getElementById('userName').value;
             try {
                 if (type === 'signup') {
                     const res = await createUserWithEmailAndPassword(auth, email, pass);
-                    await setDoc(doc(db, "users", res.user.uid), { name, email, lastColor: "#db2777" });
-                } else {
-                    await signInWithEmailAndPassword(auth, email, pass);
-                }
+                    await setDoc(doc(db, "users", res.user.uid), { name: document.getElementById('userName').value, email });
+                } else { await signInWithEmailAndPassword(auth, email, pass); }
             } catch (e) { alert(e.message); }
         };
-
         window.loginWithGoogle = async () => {
-            try {
-                const result = await signInWithPopup(auth, new GoogleAuthProvider());
-                await setDoc(doc(db, "users", result.user.uid), { name: result.user.displayName, email: result.user.email, lastColor: "#db2777" }, { merge: true });
-            } catch (e) { alert(e.message); }
+            const result = await signInWithPopup(auth, new GoogleAuthProvider());
+            await setDoc(doc(db, "users", result.user.uid), { name: result.user.displayName, email: result.user.email }, { merge: true });
         };
-
         window.logout = () => { signOut(auth); location.reload(); };
         window.openConfirmModal = () => document.getElementById('confirmModal').style.display = 'flex';
         window.closeConfirmModal = () => document.getElementById('confirmModal').style.display = 'none';
         window.executeDelete = async () => {
-            try { await deleteDoc(doc(db, "appointments", selectedEventId)); closeConfirmModal(); closeModal(); } catch (e) { alert(e.message); }
+            await deleteDoc(doc(db, "appointments", selectedEventId)); 
+            closeConfirmModal(); closeModal();
         };
     </script>
 </body>
