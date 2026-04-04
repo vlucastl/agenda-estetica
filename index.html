@@ -39,7 +39,7 @@
 <body class="bg-gray-100 min-h-screen">
 
     <div id="loadingScreen">
-        <div class="text-pink-600 font-bold animate-pulse text-xl">Sincronizando Agenda...</div>
+        <div class="text-pink-600 font-bold animate-pulse text-xl text-center">Sincronizando Agenda...</div>
     </div>
 
     <div id="authSection" class="hidden flex items-center justify-center min-h-screen p-4">
@@ -83,9 +83,9 @@
             <div class="space-y-4">
                 <label class="block text-sm font-medium">Profissional</label>
                 <select id="profSelect" class="w-full border rounded p-2 bg-gray-50 focus:ring-2 focus:ring-pink-500 outline-none"></select>
-                <input type="text" id="service" placeholder="Serviço / Cliente" class="w-full border rounded p-2">
+                <input type="text" id="service" placeholder="Serviço / Cliente" class="w-full border rounded p-2 focus:ring-2 focus:ring-pink-500 outline-none">
                 <div class="grid grid-cols-2 gap-4">
-                    <input type="number" id="price" placeholder="Valor R$" class="w-full border rounded p-2">
+                    <input type="number" id="price" placeholder="Valor R$" class="w-full border rounded p-2 focus:ring-2 focus:ring-pink-500 outline-none">
                     <select id="duration" class="w-full border rounded p-2">
                         <option value="30">30 min</option>
                         <option value="60">1 hora</option>
@@ -93,17 +93,21 @@
                         <option value="120">2 horas</option>
                         <option value="150">2h 30m</option>
                         <option value="180">3 horas</option>
+                        <option value="210">3h 30m</option>
                         <option value="240">4 horas</option>
+                        <option value="270">4h 30m</option>
+                        <option value="300">5 horas</option>
+                        <option value="330">5h 30m</option>
                         <option value="360">6 horas</option>
                     </select>
                 </div>
-                <input type="datetime-local" id="startTime" class="w-full border rounded p-2">
+                <input type="datetime-local" id="startTime" class="w-full border rounded p-2 focus:ring-2 focus:ring-pink-500 outline-none">
                 <label class="block text-sm font-medium">Cor</label>
                 <input type="hidden" id="eventColor" value="#db2777">
                 <div id="colorPalette" class="flex flex-wrap gap-2"></div>
             </div>
             <div class="mt-6 flex justify-between gap-3 pt-4 border-t">
-                <button onclick="closeModal()" class="text-gray-500 px-2">Cancelar</button>
+                <button onclick="closeModal()" class="text-gray-500 px-2 font-medium">Cancelar</button>
                 <button id="btnSaveMain" onclick="saveAppointment()" class="bg-pink-600 text-white px-6 py-2 rounded-lg font-bold flex-1">Salvar</button>
             </div>
         </div>
@@ -232,10 +236,9 @@
                 },
                 locale: 'pt-br',
                 allDaySlot: false,
-                // MUDANÇAS PARA 24 HORAS
                 slotMinTime: '00:00:00',
                 slotMaxTime: '24:00:00',
-                scrollTime: '08:00:00', // Inicia focado nas 8 da manhã
+                scrollTime: '08:00:00',
                 height: 'auto',
                 selectable: true,
                 nowIndicator: true,
@@ -281,6 +284,13 @@
         window.openModal = (date = "") => {
             document.getElementById('bookingModal').style.display = 'flex';
             if (date) document.getElementById('startTime').value = date;
+            
+            // SE FOR UM NOVO REGISTRO, LIMPA O SERVIÇO E VALOR
+            if (!selectedEventId) {
+                document.getElementById('service').value = "";
+                document.getElementById('price').value = "";
+            }
+            
             renderColorPalette();
         };
 
