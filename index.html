@@ -9,7 +9,6 @@
     <script src="https://cdn.tailwindcss.com"></script>
     
     <style>
-        /* Garantindo que os modais comecem invisíveis */
         .modal-overlay { 
             display: none; 
             position: fixed; 
@@ -28,7 +27,11 @@
 </head>
 <body class="bg-gray-100 min-h-screen">
 
-    <div id="authSection" class="flex items-center justify-center min-h-screen">
+    <div id="loadingScreen" class="fixed inset-0 bg-white z-[9999] flex items-center justify-center">
+        <div class="text-pink-600 font-bold animate-pulse text-xl">Carregando Agenda...</div>
+    </div>
+
+    <div id="authSection" class="hidden flex items-center justify-center min-h-screen">
         <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md text-center">
             <h1 class="text-3xl font-bold text-pink-600 mb-6">Acesso ao Sistema</h1>
             <div class="space-y-4 text-left">
@@ -90,7 +93,7 @@
                 <button id="btnDelete" onclick="openConfirmModal()" class="text-red-500 font-bold hidden">Excluir</button>
                 <div class="flex space-x-3 ml-auto">
                     <button onclick="closeModal()" class="text-gray-500 px-4">Cancelar</button>
-                    <button onclick="saveAppointment()" class="bg-pink-600 text-white px-6 py-2 rounded-lg font-bold">Salvar</button>
+                    <button id="btnSaveMain" onclick="saveAppointment()" class="bg-pink-600 text-white px-6 py-2 rounded-lg font-bold">Salvar</button>
                 </div>
             </div>
         </div>
@@ -156,74 +159,88 @@
         window.logout = () => signOut(auth);
 
         onAuthStateChanged(auth, async (user) => {
+            const loadingScreen = document.getElementById('loadingScreen');
             if (user) {
                 document.getElementById('authSection').classList.add('hidden');
                 document.getElementById('appSection').classList.remove('hidden');
-                const userDoc = await getDoc(doc(db, "users", user.uid));
-                document.getElementById('displayUserName').innerText = userDoc.exists() ? userDoc.data().name : user.displayName;
+                
+                document.getElementById('displayUserName').innerText = user.displayName || "Profissional";
+                
                 initCalendar();
                 loadProfessionals();
                 loadEvents();
+
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists()) {
+                    document.getElementById('displayUserName').innerText = userDoc.data().name;
+                }
             } else {
                 document.getElementById('authSection').classList.remove('hidden');
                 document.getElementById('appSection').classList.add('hidden');
             }
+            if(loadingScreen) loadingScreen.style.display = 'none';
         });
 
         // CALENDÁRIO
         function initCalendar() {
             const calendarEl = document.getElementById('calendar');
-            if (!calendar) {
-                calendar = new FullCalendar.Calendar(calendarEl, {
-                    initialView: 'timeGridWeek',
-                    locale: 'pt-br',
-                    slotMinTime: '08:00:00',
-                    slotMaxTime: '20:00:00',
-                    selectable: true,
-                    select: (info) => {
-                        selectedEventId = null;
-                        document.getElementById('btnDelete').classList.add('hidden');
-                        openModal(info.startStr.slice(0, 16));
-                    },
-                    eventClick: (info) => {
-                        selectedEventId = info.event.id;
-                        document.getElementById('btnDelete').classList.remove('hidden');
-                        const p = info.event.extendedProps;
-                        document.getElementById('service').value = p.service || "";
-                        document.getElementById('price').value = p.price || "";
-                        document.getElementById('profSelect').value = p.prof || "";
-                        document.getElementById('duration').value = p.duration || "30";
-                        document.getElementById('startTime').value = info.event.startStr.slice(0, 16);
-                        openModal();
-                    }
-                });
-                calendar.render();
-            }
+            if (!calendarEl) return;
+            if (calendar) calendar.destroy();
+
+            calendar = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'timeGridWeek',
+                locale: 'pt-br',
+                allDaySlot: false,
+                slotMinTime: '08:00:00',
+                slotMaxTime: '20:00:00',
+                selectable: true,
+                select: (info) => {
+                    selectedEventId = null;
+                    document.getElementById('btnDelete').classList.add('hidden');
+                    openModal(info.startStr.slice(0, 16));
+                },
+                eventClick: (info) => {
+                    selectedEventId = info.event.id;
+                    document.getElementById('btnDelete').classList.remove('hidden');
+                    const p = info.event.extendedProps;
+                    document.getElementById('service').value = p.service || "";
+                    document.getElementById('price').value = p.price || "";
+                    document.getElementById('profSelect').value = p.prof || "";
+                    document.getElementById('duration').value = p.duration || "30";
+                    document.getElementById('startTime').value = info.event.startStr.slice(0, 16);
+                    openModal();
+                }
+            });
+            calendar.render();
         }
 
         function loadEvents() {
             onSnapshot(collection(db, "appointments"), (snap) => {
-                calendar.removeAllEvents();
-                snap.forEach(doc => {
-                    const d = doc.data();
-                    const start = new Date(d.start);
-                    calendar.addEvent({
-                        id: doc.id,
-                        title: `${d.prof}: ${d.service}`,
-                        start: start,
-                        end: new Date(start.getTime() + d.duration * 60000),
-                        backgroundColor: '#db2777',
-                        extendedProps: { ...d }
+                if(calendar) {
+                    calendar.removeAllEvents();
+                    snap.forEach(doc => {
+                        const d = doc.data();
+                        const start = new Date(d.start);
+                        calendar.addEvent({
+                            id: doc.id,
+                            title: `${d.prof}: ${d.service}`,
+                            start: start,
+                            end: new Date(start.getTime() + d.duration * 60000),
+                            backgroundColor: '#db2777',
+                            extendedProps: { ...d }
+                        });
                     });
-                });
+                }
             });
         }
 
         function loadProfessionals() {
             onSnapshot(collection(db, "users"), (snap) => {
                 const s = document.getElementById('profSelect');
-                s.innerHTML = "";
-                snap.forEach(doc => s.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+                if(s) {
+                    s.innerHTML = "";
+                    snap.forEach(doc => s.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+                }
             });
         }
 
@@ -244,33 +261,36 @@
         window.closeConfirmModal = () => document.getElementById('confirmModal').style.display = 'none';
 
         window.saveAppointment = async () => {
-            const prof = document.getElementById('profSelect').value;
+            const btn = document.getElementById('btnSaveMain');
+            const prof = document.getElementById('profSelect').value.trim();
             const startStr = document.getElementById('startTime').value;
             const duration = parseInt(document.getElementById('duration').value);
             
+            if (!prof || !startStr) return alert("Preencha profissional e horário!");
+
             const newStart = new Date(startStr);
             const newEnd = new Date(newStart.getTime() + duration * 60000);
 
             try {
-                // Validação de Conflito
+                btn.disabled = true;
+                btn.innerText = "Validando...";
+
                 const q = query(collection(db, "appointments"), where("prof", "==", prof));
                 const querySnapshot = await getDocs(q);
                 
                 let conflito = false;
                 querySnapshot.forEach((docSnap) => {
                     if (docSnap.id === selectedEventId) return;
-
                     const d = docSnap.data();
                     const exStart = new Date(d.start);
                     const exEnd = new Date(exStart.getTime() + d.duration * 60000);
-
-                    if (newStart < exEnd && exStart < newEnd) {
-                        conflito = true;
-                    }
+                    if (newStart < exEnd && exStart < newEnd) conflito = true;
                 });
 
                 if (conflito) {
-                    alert("⚠️ Erro: O profissional já possui um agendamento neste horário!");
+                    alert("⚠️ Erro: Conflito de horário para este profissional!");
+                    btn.disabled = false;
+                    btn.innerText = "Salvar";
                     return;
                 }
 
@@ -287,6 +307,10 @@
                 
                 closeModal();
             } catch (e) { alert("Erro ao salvar: " + e.message); }
+            finally {
+                btn.disabled = false;
+                btn.innerText = "Salvar";
+            }
         };
 
         window.executeDelete = async () => {
