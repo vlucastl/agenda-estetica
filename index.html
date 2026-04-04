@@ -10,32 +10,28 @@
     
     <style>
         .modal-overlay { display: none; position: fixed; z-index: 999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
-        
-        /* Ajuste de altura do calendário */
         #calendar { max-width: 1100px; margin: 0 auto; height: 85vh; }
         
-        /* Estilo dos Eventos */
         .fc-event { 
             cursor: pointer; 
             border: none !important; 
             padding: 1px 2px; 
             font-weight: bold; 
             border-radius: 4px; 
-            font-size: 0.75rem; /* Fonte menor para mobile */
+            font-size: 0.75rem;
         }
 
         @media (min-width: 768px) {
             .fc-event { font-size: 0.85rem; padding: 2px 4px; }
         }
 
-        .event-concluido { border-left: 5px solid #059669 !important; }
-        .event-cancelado { border-left: 5px solid #4b5563 !important; text-decoration: line-through; opacity: 0.6; }
+        .event-concluido { border-left: 6px solid #059669 !important; }
+        .event-cancelado { border-left: 6px solid #4b5563 !important; text-decoration: line-through; opacity: 0.6; }
 
         #loadingScreen { position: fixed; inset: 0; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; }
         .color-sq { width: 34px; height: 34px; border-radius: 6px; cursor: pointer; border: 3px solid transparent; }
         .color-sq.active { border-color: #000; transform: scale(1.1); }
 
-        /* Ajuste para o calendário não sumir no mobile */
         .fc .fc-toolbar { flex-wrap: wrap; gap: 8px; }
         .fc .fc-toolbar-title { font-size: 1.1rem !important; }
     </style>
@@ -60,8 +56,9 @@
                 </div>
                 <button onclick="handleAuth('signup')" class="w-full bg-pink-600 text-white p-3 rounded font-bold">Criar Conta</button>
                 <button onclick="handleAuth('login')" class="w-full border border-pink-600 text-pink-600 p-3 rounded font-bold">Entrar</button>
+                <div class="flex items-center my-4"><div class="flex-grow border-t"></div><span class="mx-3 text-gray-400 text-sm">OU</span><div class="flex-grow border-t"></div></div>
                 <button onclick="loginWithGoogle()" class="w-full border p-3 rounded flex items-center justify-center gap-2 text-gray-600 font-medium">
-                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5"> Google
+                    <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" class="w-5 h-5"> Entrar com Google
                 </button>
             </div>
         </div>
@@ -85,14 +82,19 @@
             <h2 id="modalTitle" class="text-xl font-bold mb-4 border-b pb-2">Agendar Serviço</h2>
             <div class="space-y-4">
                 <label class="block text-sm font-medium">Profissional</label>
-                <select id="profSelect" class="w-full border rounded p-2 bg-gray-50"></select>
+                <select id="profSelect" class="w-full border rounded p-2 bg-gray-50 focus:ring-2 focus:ring-pink-500 outline-none"></select>
                 <input type="text" id="service" placeholder="Serviço / Cliente" class="w-full border rounded p-2">
                 <div class="grid grid-cols-2 gap-4">
                     <input type="number" id="price" placeholder="Valor R$" class="w-full border rounded p-2">
                     <select id="duration" class="w-full border rounded p-2">
-                        <option value="30">30 min</option><option value="60">1 hora</option>
-                        <option value="90">1h 30m</option><option value="120">2 horas</option>
-                        <option value="180">3 horas</option><option value="240">4 horas</option>
+                        <option value="30">30 min</option>
+                        <option value="60">1 hora</option>
+                        <option value="90">1h 30m</option>
+                        <option value="120">2 horas</option>
+                        <option value="150">2h 30m</option>
+                        <option value="180">3 horas</option>
+                        <option value="240">4 horas</option>
+                        <option value="360">6 horas</option>
                     </select>
                 </div>
                 <input type="datetime-local" id="startTime" class="w-full border rounded p-2">
@@ -219,7 +221,6 @@
             const el = document.getElementById('calendar');
             if (!el || calendar) return;
 
-            // Lógica Responsiva de Visualização
             const isMobile = window.innerWidth < 768;
             
             calendar = new FullCalendar.Calendar(el, {
@@ -231,12 +232,13 @@
                 },
                 locale: 'pt-br',
                 allDaySlot: false,
-                slotMinTime: '08:00:00',
-                slotMaxTime: '20:00:00',
+                // MUDANÇAS PARA 24 HORAS
+                slotMinTime: '00:00:00',
+                slotMaxTime: '24:00:00',
+                scrollTime: '08:00:00', // Inicia focado nas 8 da manhã
                 height: 'auto',
                 selectable: true,
                 nowIndicator: true,
-                handleWindowResize: true,
                 select: (info) => { selectedEventId = null; openModal(info.startStr.slice(0, 16)); },
                 eventClick: (info) => { showDetails(info.event); }
             });
@@ -252,8 +254,8 @@
                         let title = `${d.prof}: ${d.service}`;
                         let color = d.color || '#db2777';
                         let eventClasses = [];
-                        if (d.status === 'concluido') { title = "✅ " + title; eventClasses.push('event-concluido'); }
-                        else if (d.status === 'cancelado') { title = "❌ " + title; color = "#9ca3af"; eventClasses.push('event-cancelado'); }
+                        if (d.status === 'concluido') { title = "✅ [OK] " + title; eventClasses.push('event-concluido'); }
+                        else if (d.status === 'cancelado') { title = "❌ [CANC] " + title; color = "#9ca3af"; eventClasses.push('event-cancelado'); }
                         calendar.addEvent({
                             id: doc.id, title: title, start: d.start,
                             end: new Date(new Date(d.start).getTime() + d.duration * 60000),
