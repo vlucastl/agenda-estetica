@@ -20,7 +20,7 @@
     <div id="loadingScreen">
         <div class="text-pink-600 font-bold animate-pulse text-xl text-center">
             Conectando ao Banco de Dados...<br>
-            <span class="text-sm font-normal text-gray-400">Certifique-se de estar logado.</span>
+            <span class="text-sm font-normal text-gray-400">Verificando sessão...</span>
         </div>
     </div>
 
@@ -94,7 +94,6 @@
         <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl text-center">
             <div class="text-red-500 mb-4 text-4xl">⚠️</div>
             <h3 class="text-xl font-bold mb-2">Excluir agendamento?</h3>
-            <p class="text-gray-500 mb-6">Esta ação não pode ser desfeita.</p>
             <div class="flex justify-center gap-3">
                 <button onclick="closeConfirmModal()" class="px-4 py-2 text-gray-500">Voltar</button>
                 <button onclick="executeDelete()" class="bg-red-500 text-white px-6 py-2 rounded-lg font-bold">Confirmar</button>
@@ -123,21 +122,24 @@
         let calendar;
         let selectedEventId = null;
 
-        // Monitor de Autenticação
         onAuthStateChanged(auth, async (user) => {
             const loader = document.getElementById('loadingScreen');
             try {
                 if (user) {
                     document.getElementById('authSection').classList.add('hidden');
                     document.getElementById('appSection').classList.remove('hidden');
-                    document.getElementById('displayUserName').innerText = user.displayName || "Profissional";
+                    
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+                    if (!userDoc.exists()) {
+                        await setDoc(userDocRef, { name: user.displayName || user.email.split('@')[0], email: user.email });
+                    }
+
+                    document.getElementById('displayUserName').innerText = user.displayName || (userDoc.exists() ? userDoc.data().name : "Profissional");
                     
                     initCalendar();
                     loadProfessionals();
                     loadEvents();
-
-                    const userDoc = await getDoc(doc(db, "users", user.uid));
-                    if (userDoc.exists()) document.getElementById('displayUserName').innerText = userDoc.data().name;
                 } else {
                     document.getElementById('authSection').classList.remove('hidden');
                     document.getElementById('appSection').classList.add('hidden');
@@ -146,7 +148,6 @@
             finally { if(loader) loader.style.display = 'none'; }
         });
 
-        // Funções de Calendário
         function initCalendar() {
             const el = document.getElementById('calendar');
             if (!el) return;
@@ -158,11 +159,7 @@
                 slotMinTime: '08:00:00',
                 slotMaxTime: '20:00:00',
                 selectable: true,
-                select: (info) => { 
-                    selectedEventId = null; 
-                    document.getElementById('btnDelete').classList.add('hidden'); 
-                    openModal(info.startStr.slice(0, 16)); 
-                },
+                select: (info) => { selectedEventId = null; document.getElementById('btnDelete').classList.add('hidden'); openModal(info.startStr.slice(0, 16)); },
                 eventClick: (info) => {
                     selectedEventId = info.event.id;
                     document.getElementById('btnDelete').classList.remove('hidden');
@@ -201,13 +198,15 @@
             onSnapshot(collection(db, "users"), (snap) => {
                 const s = document.getElementById('profSelect');
                 if (s) {
-                    s.innerHTML = "";
-                    snap.forEach(doc => s.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`);
+                    s.innerHTML = '<option value="">Selecione o profissional...</option>';
+                    snap.forEach(doc => {
+                        const data = doc.data();
+                        if (data.name) s.innerHTML += `<option value="${data.name}">${data.name}</option>`;
+                    });
                 }
             });
         }
 
-        // Ações de Interface
         window.handleAuth = async (type) => {
             const email = document.getElementById('userEmail').value;
             const pass = document.getElementById('userPass').value;
@@ -231,12 +230,7 @@
 
         window.logout = () => signOut(auth);
         window.openModal = (date = "") => { document.getElementById('bookingModal').style.display = 'flex'; if (date) document.getElementById('startTime').value = date; };
-        window.closeModal = () => { 
-            document.getElementById('bookingModal').style.display = 'none'; 
-            document.getElementById('service').value = ""; 
-            document.getElementById('price').value = ""; 
-            selectedEventId = null; 
-        };
+        window.closeModal = () => { document.getElementById('bookingModal').style.display = 'none'; document.getElementById('service').value = ""; document.getElementById('price').value = ""; selectedEventId = null; };
         window.openConfirmModal = () => document.getElementById('confirmModal').style.display = 'flex';
         window.closeConfirmModal = () => document.getElementById('confirmModal').style.display = 'none';
 
@@ -245,14 +239,12 @@
             const prof = document.getElementById('profSelect').value;
             const startStr = document.getElementById('startTime').value;
             const duration = parseInt(document.getElementById('duration').value);
-            if (!prof || !startStr) return alert("Por favor, preencha o profissional e o horário.");
+            if (!prof || !startStr) return alert("Por favor, selecione um profissional.");
             
             try {
                 btn.disabled = true;
                 const newStart = new Date(startStr);
                 const newEnd = new Date(newStart.getTime() + duration * 60000);
-                
-                // Validação de conflito
                 const q = query(collection(db, "appointments"), where("prof", "==", prof));
                 const snap = await getDocs(q);
                 let conflito = false;
@@ -264,7 +256,7 @@
                     if (newStart < exEnd && exStart < newEnd) conflito = true;
                 });
 
-                if (conflito) { alert("Atenção: Este profissional já possui um agendamento neste horário!"); return; }
+                if (conflito) { alert("Conflito de horário!"); return; }
 
                 const data = { prof, service: document.getElementById('service').value, price: document.getElementById('price').value, start: startStr, duration };
                 if (selectedEventId) await updateDoc(doc(db, "appointments", selectedEventId), data);
@@ -274,11 +266,7 @@
         };
 
         window.executeDelete = async () => {
-            try { 
-                await deleteDoc(doc(db, "appointments", selectedEventId)); 
-                closeConfirmModal(); 
-                closeModal(); 
-            } catch (e) { alert("Erro ao excluir: " + e.message); }
+            try { await deleteDoc(doc(db, "appointments", selectedEventId)); closeConfirmModal(); closeModal(); } catch (e) { alert("Erro ao excluir: " + e.message); }
         };
     </script>
 </body>
