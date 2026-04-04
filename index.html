@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agenda EstÈtica Compartilhada</title>
+    <title>Agenda Est√©tica Compartilhada</title>
     
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -58,7 +58,7 @@
     <div id="appSection" class="hidden container mx-auto p-4">
         <header class="flex flex-col md:flex-row justify-between items-center mb-6 bg-white p-4 rounded-lg shadow-sm gap-4">
             <div>
-                <h1 class="text-2xl font-bold text-gray-800">Ol·, <span id="displayUserName" class="text-pink-600">...</span></h1>
+                <h1 class="text-2xl font-bold text-gray-800">Ol√°, <span id="displayUserName" class="text-pink-600">...</span></h1>
                 <p class="text-sm text-gray-500">Agenda Compartilhada</p>
             </div>
             <div class="flex items-center gap-4">
@@ -76,16 +76,16 @@
 
     <div id="bookingModal" class="modal flex items-center justify-center">
         <div class="bg-white rounded-lg p-8 w-full max-w-md shadow-2xl">
-            <h2 class="text-xl font-bold mb-4 border-b pb-2 text-gray-800">Agendar ServiÁo</h2>
+            <h2 class="text-xl font-bold mb-4 border-b pb-2 text-gray-800">Agendar Servi√ßo</h2>
             
             <div class="space-y-4">
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Profissional Respons·vel</label>
+                    <label class="block text-sm font-medium text-gray-700">Profissional Respons√°vel</label>
                     <select id="profSelect" class="w-full border rounded p-2 mt-1 bg-gray-50 focus:ring-pink-500 focus:border-pink-500">
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">ServiÁo / Cliente</label>
+                    <label class="block text-sm font-medium text-gray-700">Servi√ßo / Cliente</label>
                     <input type="text" id="service" placeholder="Ex: Progressiva - Maria" class="w-full border rounded p-2 mt-1 focus:ring-pink-500 focus:border-pink-500">
                 </div>
                 <div class="grid grid-cols-2 gap-4">
@@ -94,7 +94,7 @@
                         <input type="number" id="price" placeholder="0,00" class="w-full border rounded p-2 mt-1 focus:ring-pink-500 focus:border-pink-500">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-gray-700">DuraÁ„o</label>
+                        <label class="block text-sm font-medium text-gray-700">Dura√ß√£o</label>
                         <select id="duration" class="w-full border rounded p-2 mt-1 focus:ring-pink-500 focus:border-pink-500">
                             <option value="30">30 min</option>
                             <option value="60">1 hora</option>
@@ -105,14 +105,33 @@
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-gray-700">Data e Hora de InÌcio</label>
+                    <label class="block text-sm font-medium text-gray-700">Data e Hora de In√≠cio</label>
                     <input type="datetime-local" id="startTime" class="w-full border rounded p-2 mt-1 focus:ring-pink-500 focus:border-pink-500">
                 </div>
             </div>
 
-            <div class="mt-6 flex justify-end space-x-3 border-t pt-4">
-                <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 font-medium">Cancelar</button>
-                <button onclick="saveAppointment()" class="bg-pink-600 hover:bg-pink-700 text-white px-8 py-2 rounded-lg font-bold shadow transition">Salvar</button>
+            <div class="mt-6 flex justify-between items-center border-t pt-4">
+                <button id="btnDelete" onclick="openConfirmModal()" class="text-red-500 hover:text-red-700 font-medium hidden">Excluir</button>
+                <div class="flex space-x-3 ml-auto">
+                    <button onclick="closeModal()" class="text-gray-500 hover:text-gray-700 font-medium">Cancelar</button>
+                    <button onclick="saveAppointment()" class="bg-pink-600 hover:bg-pink-700 text-white px-8 py-2 rounded-lg font-bold shadow transition">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="confirmModal" class="modal flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl text-center">
+            <div class="text-red-500 mb-4">
+                <svg class="w-16 h-16 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            <h3 class="text-xl font-bold text-gray-800 mb-2">Tem certeza?</h3>
+            <p class="text-gray-500 mb-6">Voc√™ deseja excluir este agendamento? Esta a√ß√£o n√£o pode ser desfeita.</p>
+            <div class="flex justify-center gap-3">
+                <button onclick="closeConfirmModal()" class="px-4 py-2 text-gray-500 hover:text-gray-700 font-medium">Cancelar</button>
+                <button onclick="executeDelete()" class="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-lg font-bold shadow transition">Sim, Excluir</button>
             </div>
         </div>
     </div>
@@ -122,11 +141,9 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        // Importando os provedores do Google
         import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, setDoc, getDoc, collection, addDoc, onSnapshot, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // SUA CONFIGURA«√O DO FIREBASE
         const firebaseConfig = {
             apiKey: "AIzaSyDVWRf6EOpZtdhtmJUS-QpK-4u5f8lCORQ",
             authDomain: "agenda-estetica-226d0.firebaseapp.com",
@@ -140,20 +157,16 @@
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
-        
-        // Provedor do Google
         const googleProvider = new GoogleAuthProvider();
 
         let calendar;
+        let selectedEventId = null;
 
-        // L”GICA DE AUTENTICA«√O COM E-MAIL/SENHA
         window.handleAuth = async (type) => {
             const email = document.getElementById('userEmail').value;
             const pass = document.getElementById('userPass').value;
             const name = document.getElementById('userName').value;
-
             if (!email || !pass) return alert("Por favor, preencha o e-mail e a senha.");
-
             try {
                 if (type === 'signup') {
                     if (!name) return alert("Digite seu nome completo para criar a conta.");
@@ -162,46 +175,27 @@
                 } else {
                     await signInWithEmailAndPassword(auth, email, pass);
                 }
-            } catch (e) { 
-                alert("Ocorreu um erro: " + e.message); 
-            }
+            } catch (e) { alert("Ocorreu um erro: " + e.message); }
         };
 
-        // L”GICA DE AUTENTICA«√O COM GOOGLE
         window.loginWithGoogle = async () => {
             try {
                 const result = await signInWithPopup(auth, googleProvider);
                 const user = result.user;
-                
-                // Salva o nome do usu·rio no banco (usando merge: true para n„o apagar dados se ele j· existir)
-                await setDoc(doc(db, "users", user.uid), { 
-                    name: user.displayName || "Usu·rio Google", 
-                    email: user.email 
-                }, { merge: true });
-                
-            } catch (error) {
-                alert("Erro ao entrar com o Google: " + error.message);
-            }
+                await setDoc(doc(db, "users", user.uid), { name: user.displayName || "Usu√°rio Google", email: user.email }, { merge: true });
+            } catch (error) { alert("Erro ao entrar com o Google: " + error.message); }
         };
 
         window.logout = () => signOut(auth);
 
-        // MONITORAMENTO DE ESTADO
         onAuthStateChanged(auth, async (user) => {
             const authSec = document.getElementById('authSection');
             const appSec = document.getElementById('appSection');
-            
             if (user) {
                 authSec.classList.add('hidden');
                 appSec.classList.remove('hidden');
-                
                 const userDoc = await getDoc(doc(db, "users", user.uid));
-                if(userDoc.exists()) {
-                    document.getElementById('displayUserName').innerText = userDoc.data().name;
-                } else {
-                    document.getElementById('displayUserName').innerText = user.displayName;
-                }
-                
+                document.getElementById('displayUserName').innerText = userDoc.exists() ? userDoc.data().name : user.displayName;
                 initCalendar();
                 loadProfessionals();
                 loadEvents();
@@ -211,7 +205,6 @@
             }
         });
 
-        // CARREGAR LISTA DE PROFISSIONAIS
         function loadProfessionals() {
             onSnapshot(collection(db, "users"), (snapshot) => {
                 const select = document.getElementById('profSelect');
@@ -223,7 +216,6 @@
             });
         }
 
-        // INICIALIZAR O CALEND¡RIO
         function initCalendar() {
             const calendarEl = document.getElementById('calendar');
             if (!calendar) {
@@ -233,24 +225,33 @@
                     slotMinTime: '08:00:00',
                     slotMaxTime: '20:00:00',
                     allDaySlot: false,
-                    headerToolbar: { 
-                        left: 'prev,next today', 
-                        center: 'title', 
-                        right: 'timeGridWeek,timeGridDay' 
-                    },
+                    headerToolbar: { left: 'prev,next today', center: 'title', right: 'timeGridWeek,timeGridDay' },
                     selectable: true,
-                    select: (info) => openModal(info.startStr.slice(0, 16))
+                    select: (info) => {
+                        selectedEventId = null;
+                        document.getElementById('btnDelete').classList.add('hidden');
+                        openModal(info.startStr.slice(0, 16));
+                    },
+                    eventClick: (info) => {
+                        selectedEventId = info.event.id;
+                        document.getElementById('btnDelete').classList.remove('hidden');
+                        const props = info.event.extendedProps;
+                        document.getElementById('profSelect').value = props.prof;
+                        document.getElementById('service').value = props.service;
+                        document.getElementById('price').value = props.price;
+                        document.getElementById('duration').value = props.duration;
+                        document.getElementById('startTime').value = info.event.startStr.slice(0, 16);
+                        openModal();
+                    }
                 });
                 calendar.render();
             }
         }
 
-        // SALVAR NOVO AGENDAMENTO
         window.saveAppointment = async () => {
             const service = document.getElementById('service').value;
             const start = document.getElementById('startTime').value;
-            
-            if (!service || !start) return alert("Preencha o serviÁo e a data de inÌcio!");
+            if (!service || !start) return alert("Preencha o servi√ßo e a data de in√≠cio!");
 
             const appointment = {
                 prof: document.getElementById('profSelect').value,
@@ -261,16 +262,15 @@
             };
             
             try {
-                await addDoc(collection(db, "appointments"), appointment);
+                if (selectedEventId) {
+                    await updateDoc(doc(db, "appointments", selectedEventId), appointment);
+                } else {
+                    await addDoc(collection(db, "appointments"), appointment);
+                }
                 closeModal();
-                document.getElementById('service').value = "";
-                document.getElementById('price').value = "";
-            } catch (e) { 
-                alert("Erro ao salvar o agendamento: " + e.message); 
-            }
+            } catch (e) { alert("Erro ao salvar: " + e.message); }
         };
 
-        // CARREGAR AGENDAMENTOS
         function loadEvents() {
             onSnapshot(collection(db, "appointments"), (snapshot) => {
                 calendar.removeAllEvents();
@@ -278,25 +278,43 @@
                     const data = doc.data();
                     const start = new Date(data.start);
                     const end = new Date(start.getTime() + data.duration * 60000);
-                    
                     calendar.addEvent({
+                        id: doc.id,
                         title: `${data.prof}: ${data.service}`,
                         start: start,
                         end: end,
                         backgroundColor: '#db2777',
-                        borderColor: '#db2777'
+                        borderColor: '#db2777',
+                        extendedProps: { ...data }
                     });
                 });
             });
         }
 
-        // CONTROLE DO MODAL
         window.openModal = (dateStr = "") => {
             document.getElementById('bookingModal').style.display = 'flex';
             if(dateStr) document.getElementById('startTime').value = dateStr;
+            if(!selectedEventId) {
+                document.getElementById('service').value = "";
+                document.getElementById('price').value = "";
+            }
         };
+
         window.closeModal = () => document.getElementById('bookingModal').style.display = 'none';
+
+        window.openConfirmModal = () => document.getElementById('confirmModal').style.display = 'flex';
         
+        window.closeConfirmModal = () => document.getElementById('confirmModal').style.display = 'none';
+
+        window.executeDelete = async () => {
+            if (selectedEventId) {
+                try {
+                    await deleteDoc(doc(db, "appointments", selectedEventId));
+                    closeConfirmModal();
+                    closeModal();
+                } catch (e) { alert("Erro ao excluir: " + e.message); }
+            }
+        };
     </script>
 </body>
 </html>
