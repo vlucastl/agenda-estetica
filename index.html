@@ -85,6 +85,7 @@
         <div id="financeSection" class="hidden space-y-4">
             <div class="bg-white p-4 md:p-6 rounded-xl shadow-md">
                 <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Resumo da Semana (Concluídos)</h2>
+                <p class="text-xs text-gray-400 mb-4">* Clique no profissional para ver detalhes</p>
                 <div id="financeList" class="divide-y">
                     </div>
             </div>
@@ -158,6 +159,17 @@
         </div>
     </div>
 
+    <div id="financeDetailModal" class="modal-overlay">
+        <div class="bg-white rounded-lg p-6 md:p-8 w-[95%] max-w-lg shadow-2xl relative overflow-y-auto max-h-[90vh]">
+            <h2 id="financeDetailTitle" class="text-xl font-bold mb-4 border-b pb-2 text-pink-600"></h2>
+            <div id="financeDetailContent" class="space-y-3">
+                </div>
+            <div class="mt-6 pt-4 border-t text-right">
+                <button onclick="closeFinanceDetailModal()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Fechar</button>
+            </div>
+        </div>
+    </div>
+
     <div id="confirmModal" class="modal-overlay" style="z-index: 1000;"><div class="bg-white rounded-lg p-6 w-full max-sm shadow-2xl text-center"><h3 class="text-lg font-bold mb-4">Excluir?</h3><div class="flex justify-center gap-3"><button onclick="closeConfirmModal()" class="px-4 py-2 text-gray-500">Voltar</button><button onclick="executeDelete()" class="bg-red-500 text-white px-6 py-2 rounded-lg font-bold">Sim</button></div></div></div>
 
     <script type="module">
@@ -181,6 +193,7 @@
         let calendar;
         window.selectedEventId = null;
         let userData = {};
+        let financeDataByProf = {}; // Armazena detalhes para o modal financeiro
         const presetColors = ['#db2777', '#2563eb', '#10b981', '#f59e0b', '#7c3aed', '#dc2626', '#0891b2', '#4b5563', '#1e293b', '#000000'];
 
         window.togglePassword = () => {
@@ -224,16 +237,29 @@
             const snap = await getDocs(q);
             
             let totals = {};
+            financeDataByProf = {}; // Limpa dados anteriores
 
             snap.forEach(doc => {
                 const d = doc.data();
                 const eventDate = new Date(d.start);
                 if (eventDate >= startOfWeek) {
-                    if (!totals[d.prof]) totals[d.prof] = { bruto: 0, comissao: 0 };
+                    if (!totals[d.prof]) {
+                        totals[d.prof] = { bruto: 0, comissao: 0 };
+                        financeDataByProf[d.prof] = [];
+                    }
                     const valor = parseFloat(d.price) || 0;
                     const perc = parseFloat(d.percentage) || 0;
+                    const valorComissao = (valor * (perc / 100));
+                    
                     totals[d.prof].bruto += valor;
-                    totals[d.prof].comissao += (valor * (perc / 100));
+                    totals[d.prof].comissao += valorComissao;
+
+                    financeDataByProf[d.prof].push({
+                        service: d.service,
+                        date: eventDate.toLocaleDateString('pt-BR', {day: '2-digit', month: '2-digit'}),
+                        bruto: valor,
+                        liquido: valorComissao
+                    });
                 }
             });
 
@@ -246,7 +272,7 @@
 
             keys.forEach(prof => {
                 list.innerHTML += `
-                    <div class="flex justify-between items-center py-4 px-2">
+                    <div onclick="showFinanceDetails('${prof}')" class="flex justify-between items-center py-4 px-2 cursor-pointer hover:bg-pink-50 transition rounded-lg">
                         <div>
                             <p class="font-bold text-gray-800 text-lg">${prof}</p>
                             <p class="text-sm text-gray-500">Total Bruto: R$ ${totals[prof].bruto.toFixed(2)}</p>
@@ -259,6 +285,36 @@
                 `;
             });
         }
+
+        window.showFinanceDetails = (prof) => {
+            const title = document.getElementById('financeDetailTitle');
+            const content = document.getElementById('financeDetailContent');
+            const data = financeDataByProf[prof];
+
+            title.innerText = `Serviços de ${prof}`;
+            content.innerHTML = "";
+
+            data.forEach(item => {
+                content.innerHTML += `
+                    <div class="p-3 bg-gray-50 rounded-lg border-l-4 border-pink-500 flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-gray-800">${item.service}</p>
+                            <p class="text-xs text-gray-500">Data: ${item.date}</p>
+                        </div>
+                        <div class="text-right">
+                            <p class="text-xs text-gray-400">Bruto: R$ ${item.bruto.toFixed(2)}</p>
+                            <p class="text-sm text-green-600 font-bold">Comissão: R$ ${item.liquido.toFixed(2)}</p>
+                        </div>
+                    </div>
+                `;
+            });
+
+            document.getElementById('financeDetailModal').style.display = 'flex';
+        };
+
+        window.closeFinanceDetailModal = () => {
+            document.getElementById('financeDetailModal').style.display = 'none';
+        };
 
         function renderColorPalette() {
             const palette = document.getElementById('colorPalette');
