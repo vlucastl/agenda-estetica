@@ -5,37 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Agenda Estética Compartilhada</title>
     
-    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <script src="https://cdn.tailwindcss.com"></script>
     
     <style>
-        .modal-overlay { 
-            display: none; 
-            position: fixed; 
-            z-index: 999; 
-            left: 0; 
-            top: 0; 
-            width: 100%; 
-            height: 100%; 
-            background: rgba(0,0,0,0.6); 
-            align-items: center; 
-            justify-content: center;
-        }
-        #calendar { max-width: 1100px; margin: 0 auto; }
+        .modal-overlay { display: none; position: fixed; z-index: 999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
+        #calendar { max-width: 1100px; margin: 0 auto; height: 80vh; }
         .fc-event { cursor: pointer; }
+        #loadingScreen { position: fixed; inset: 0; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; }
     </style>
 </head>
 <body class="bg-gray-100 min-h-screen">
 
-    <div id="loadingScreen" class="fixed inset-0 bg-white z-[9999] flex items-center justify-center">
-        <div class="text-pink-600 font-bold animate-pulse text-xl">Carregando Agenda...</div>
+    <div id="loadingScreen">
+        <div class="text-pink-600 font-bold animate-pulse text-xl text-center">
+            Conectando ao Banco de Dados...<br>
+            <span class="text-sm font-normal text-gray-400">Certifique-se de estar logado.</span>
+        </div>
     </div>
 
     <div id="authSection" class="hidden flex items-center justify-center min-h-screen">
         <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md text-center">
             <h1 class="text-3xl font-bold text-pink-600 mb-6">Acesso ao Sistema</h1>
             <div class="space-y-4 text-left">
-                <input type="text" id="userName" placeholder="Nome Completo (Cadastro)" class="w-full border p-3 rounded">
+                <input type="text" id="userName" placeholder="Nome Completo" class="w-full border p-3 rounded">
                 <input type="email" id="userEmail" placeholder="E-mail" class="w-full border p-3 rounded">
                 <input type="password" id="userPass" placeholder="Senha" class="w-full border p-3 rounded">
                 <button onclick="handleAuth('signup')" class="w-full bg-pink-600 text-white p-3 rounded font-bold">Criar Conta</button>
@@ -47,11 +40,9 @@
 
     <div id="appSection" class="hidden container mx-auto p-4">
         <header class="flex justify-between items-center mb-6 bg-white p-4 rounded-lg shadow-sm">
-            <div>
-                <h1 class="text-2xl font-bold text-gray-800">Olá, <span id="displayUserName" class="text-pink-600">...</span></h1>
-            </div>
+            <h1 class="text-2xl font-bold text-gray-800">Olá, <span id="displayUserName" class="text-pink-600">...</span></h1>
             <div class="flex items-center gap-4">
-                <button onclick="openModal()" class="bg-pink-600 text-white py-2 px-6 rounded-full font-bold shadow-lg">+ Novo</button>
+                <button onclick="openModal()" class="bg-pink-600 text-white py-2 px-6 rounded-full font-bold shadow-lg">+ Novo Agendamento</button>
                 <button onclick="logout()" class="text-red-500 underline text-sm">Sair</button>
             </div>
         </header>
@@ -64,15 +55,15 @@
         <div class="bg-white rounded-lg p-8 w-full max-w-md shadow-2xl relative">
             <h2 class="text-xl font-bold mb-4 border-b pb-2">Agendar Serviço</h2>
             <div class="space-y-4">
-                <label class="block text-sm font-medium">Profissional</label>
+                <label class="block text-sm font-medium">Profissional Responsável</label>
                 <select id="profSelect" class="w-full border rounded p-2 bg-gray-50"></select>
                 
-                <label class="block text-sm font-medium">Serviço / Cliente</label>
-                <input type="text" id="service" class="w-full border rounded p-2">
+                <label class="block text-sm font-medium">Serviço / Nome do Cliente</label>
+                <input type="text" id="service" class="w-full border rounded p-2" placeholder="Ex: Limpeza de Pele - Maria">
                 
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm font-medium">Valor</label>
+                        <label class="block text-sm font-medium">Valor (R$)</label>
                         <input type="number" id="price" class="w-full border rounded p-2">
                     </div>
                     <div>
@@ -85,7 +76,7 @@
                         </select>
                     </div>
                 </div>
-                <label class="block text-sm font-medium">Início</label>
+                <label class="block text-sm font-medium">Data e Hora de Início</label>
                 <input type="datetime-local" id="startTime" class="w-full border rounded p-2">
             </div>
 
@@ -102,16 +93,14 @@
     <div id="confirmModal" class="modal-overlay" style="z-index: 1000;">
         <div class="bg-white rounded-lg p-6 w-full max-w-sm shadow-2xl text-center">
             <div class="text-red-500 mb-4 text-4xl">⚠️</div>
-            <h3 class="text-xl font-bold mb-2">Tem certeza?</h3>
-            <p class="text-gray-500 mb-6">Deseja mesmo excluir este agendamento?</p>
+            <h3 class="text-xl font-bold mb-2">Excluir agendamento?</h3>
+            <p class="text-gray-500 mb-6">Esta ação não pode ser desfeita.</p>
             <div class="flex justify-center gap-3">
                 <button onclick="closeConfirmModal()" class="px-4 py-2 text-gray-500">Voltar</button>
-                <button onclick="executeDelete()" class="bg-red-500 text-white px-6 py-2 rounded-lg font-bold">Sim, Excluir</button>
+                <button onclick="executeDelete()" class="bg-red-500 text-white px-6 py-2 rounded-lg font-bold">Confirmar</button>
             </div>
         </div>
     </div>
-
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -134,70 +123,45 @@
         let calendar;
         let selectedEventId = null;
 
-        // AUTH
-        window.handleAuth = async (type) => {
-            const email = document.getElementById('userEmail').value;
-            const pass = document.getElementById('userPass').value;
-            const name = document.getElementById('userName').value;
-            try {
-                if (type === 'signup') {
-                    const res = await createUserWithEmailAndPassword(auth, email, pass);
-                    await setDoc(doc(db, "users", res.user.uid), { name, email });
-                } else {
-                    await signInWithEmailAndPassword(auth, email, pass);
-                }
-            } catch (e) { alert(e.message); }
-        };
-
-        window.loginWithGoogle = async () => {
-            try {
-                const result = await signInWithPopup(auth, new GoogleAuthProvider());
-                await setDoc(doc(db, "users", result.user.uid), { name: result.user.displayName, email: result.user.email }, { merge: true });
-            } catch (e) { alert(e.message); }
-        };
-
-        window.logout = () => signOut(auth);
-
+        // Monitor de Autenticação
         onAuthStateChanged(auth, async (user) => {
-            const loadingScreen = document.getElementById('loadingScreen');
-            if (user) {
-                document.getElementById('authSection').classList.add('hidden');
-                document.getElementById('appSection').classList.remove('hidden');
-                
-                document.getElementById('displayUserName').innerText = user.displayName || "Profissional";
-                
-                initCalendar();
-                loadProfessionals();
-                loadEvents();
+            const loader = document.getElementById('loadingScreen');
+            try {
+                if (user) {
+                    document.getElementById('authSection').classList.add('hidden');
+                    document.getElementById('appSection').classList.remove('hidden');
+                    document.getElementById('displayUserName').innerText = user.displayName || "Profissional";
+                    
+                    initCalendar();
+                    loadProfessionals();
+                    loadEvents();
 
-                const userDoc = await getDoc(doc(db, "users", user.uid));
-                if (userDoc.exists()) {
-                    document.getElementById('displayUserName').innerText = userDoc.data().name;
+                    const userDoc = await getDoc(doc(db, "users", user.uid));
+                    if (userDoc.exists()) document.getElementById('displayUserName').innerText = userDoc.data().name;
+                } else {
+                    document.getElementById('authSection').classList.remove('hidden');
+                    document.getElementById('appSection').classList.add('hidden');
                 }
-            } else {
-                document.getElementById('authSection').classList.remove('hidden');
-                document.getElementById('appSection').classList.add('hidden');
-            }
-            if(loadingScreen) loadingScreen.style.display = 'none';
+            } catch (e) { console.error(e); }
+            finally { if(loader) loader.style.display = 'none'; }
         });
 
-        // CALENDÁRIO
+        // Funções de Calendário
         function initCalendar() {
-            const calendarEl = document.getElementById('calendar');
-            if (!calendarEl) return;
+            const el = document.getElementById('calendar');
+            if (!el) return;
             if (calendar) calendar.destroy();
-
-            calendar = new FullCalendar.Calendar(calendarEl, {
+            calendar = new FullCalendar.Calendar(el, {
                 initialView: 'timeGridWeek',
                 locale: 'pt-br',
                 allDaySlot: false,
                 slotMinTime: '08:00:00',
                 slotMaxTime: '20:00:00',
                 selectable: true,
-                select: (info) => {
-                    selectedEventId = null;
-                    document.getElementById('btnDelete').classList.add('hidden');
-                    openModal(info.startStr.slice(0, 16));
+                select: (info) => { 
+                    selectedEventId = null; 
+                    document.getElementById('btnDelete').classList.add('hidden'); 
+                    openModal(info.startStr.slice(0, 16)); 
                 },
                 eventClick: (info) => {
                     selectedEventId = info.event.id;
@@ -216,16 +180,15 @@
 
         function loadEvents() {
             onSnapshot(collection(db, "appointments"), (snap) => {
-                if(calendar) {
+                if (calendar) {
                     calendar.removeAllEvents();
                     snap.forEach(doc => {
                         const d = doc.data();
-                        const start = new Date(d.start);
                         calendar.addEvent({
                             id: doc.id,
                             title: `${d.prof}: ${d.service}`,
-                            start: start,
-                            end: new Date(start.getTime() + d.duration * 60000),
+                            start: new Date(d.start),
+                            end: new Date(new Date(d.start).getTime() + d.duration * 60000),
                             backgroundColor: '#db2777',
                             extendedProps: { ...d }
                         });
@@ -237,87 +200,84 @@
         function loadProfessionals() {
             onSnapshot(collection(db, "users"), (snap) => {
                 const s = document.getElementById('profSelect');
-                if(s) {
+                if (s) {
                     s.innerHTML = "";
                     snap.forEach(doc => s.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`);
                 }
             });
         }
 
-        // MODAIS E AÇÕES
-        window.openModal = (date = "") => {
-            document.getElementById('bookingModal').style.display = 'flex';
-            if (date) document.getElementById('startTime').value = date;
+        // Ações de Interface
+        window.handleAuth = async (type) => {
+            const email = document.getElementById('userEmail').value;
+            const pass = document.getElementById('userPass').value;
+            const name = document.getElementById('userName').value;
+            try {
+                if (type === 'signup') {
+                    const res = await createUserWithEmailAndPassword(auth, email, pass);
+                    await setDoc(doc(db, "users", res.user.uid), { name, email });
+                } else {
+                    await signInWithEmailAndPassword(auth, email, pass);
+                }
+            } catch (e) { alert("Erro: " + e.message); }
         };
 
-        window.closeModal = () => {
-            document.getElementById('bookingModal').style.display = 'none';
-            document.getElementById('service').value = "";
-            document.getElementById('price').value = "";
-            selectedEventId = null;
+        window.loginWithGoogle = async () => {
+            try {
+                const result = await signInWithPopup(auth, new GoogleAuthProvider());
+                await setDoc(doc(db, "users", result.user.uid), { name: result.user.displayName, email: result.user.email }, { merge: true });
+            } catch (e) { alert("Erro: " + e.message); }
         };
 
+        window.logout = () => signOut(auth);
+        window.openModal = (date = "") => { document.getElementById('bookingModal').style.display = 'flex'; if (date) document.getElementById('startTime').value = date; };
+        window.closeModal = () => { 
+            document.getElementById('bookingModal').style.display = 'none'; 
+            document.getElementById('service').value = ""; 
+            document.getElementById('price').value = ""; 
+            selectedEventId = null; 
+        };
         window.openConfirmModal = () => document.getElementById('confirmModal').style.display = 'flex';
         window.closeConfirmModal = () => document.getElementById('confirmModal').style.display = 'none';
 
         window.saveAppointment = async () => {
             const btn = document.getElementById('btnSaveMain');
-            const prof = document.getElementById('profSelect').value.trim();
+            const prof = document.getElementById('profSelect').value;
             const startStr = document.getElementById('startTime').value;
             const duration = parseInt(document.getElementById('duration').value);
+            if (!prof || !startStr) return alert("Por favor, preencha o profissional e o horário.");
             
-            if (!prof || !startStr) return alert("Preencha profissional e horário!");
-
-            const newStart = new Date(startStr);
-            const newEnd = new Date(newStart.getTime() + duration * 60000);
-
             try {
                 btn.disabled = true;
-                btn.innerText = "Validando...";
-
-                const q = query(collection(db, "appointments"), where("prof", "==", prof));
-                const querySnapshot = await getDocs(q);
+                const newStart = new Date(startStr);
+                const newEnd = new Date(newStart.getTime() + duration * 60000);
                 
+                // Validação de conflito
+                const q = query(collection(db, "appointments"), where("prof", "==", prof));
+                const snap = await getDocs(q);
                 let conflito = false;
-                querySnapshot.forEach((docSnap) => {
-                    if (docSnap.id === selectedEventId) return;
-                    const d = docSnap.data();
+                snap.forEach(ds => {
+                    if (ds.id === selectedEventId) return;
+                    const d = ds.data();
                     const exStart = new Date(d.start);
                     const exEnd = new Date(exStart.getTime() + d.duration * 60000);
                     if (newStart < exEnd && exStart < newEnd) conflito = true;
                 });
 
-                if (conflito) {
-                    alert("⚠️ Erro: Conflito de horário para este profissional!");
-                    btn.disabled = false;
-                    btn.innerText = "Salvar";
-                    return;
-                }
+                if (conflito) { alert("Atenção: Este profissional já possui um agendamento neste horário!"); return; }
 
-                const data = {
-                    prof,
-                    service: document.getElementById('service').value,
-                    price: document.getElementById('price').value,
-                    start: startStr,
-                    duration
-                };
-
+                const data = { prof, service: document.getElementById('service').value, price: document.getElementById('price').value, start: startStr, duration };
                 if (selectedEventId) await updateDoc(doc(db, "appointments", selectedEventId), data);
                 else await addDoc(collection(db, "appointments"), data);
-                
                 closeModal();
-            } catch (e) { alert("Erro ao salvar: " + e.message); }
-            finally {
-                btn.disabled = false;
-                btn.innerText = "Salvar";
-            }
+            } catch (e) { alert("Erro ao salvar: " + e.message); } finally { btn.disabled = false; }
         };
 
         window.executeDelete = async () => {
-            try {
-                await deleteDoc(doc(db, "appointments", selectedEventId));
-                closeConfirmModal();
-                closeModal();
+            try { 
+                await deleteDoc(doc(db, "appointments", selectedEventId)); 
+                closeConfirmModal(); 
+                closeModal(); 
             } catch (e) { alert("Erro ao excluir: " + e.message); }
         };
     </script>
