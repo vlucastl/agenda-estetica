@@ -11,8 +11,29 @@
     <style>
         .modal-overlay { display: none; position: fixed; z-index: 999; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); align-items: center; justify-content: center; }
         #calendar { max-width: 1100px; margin: 0 auto; height: 80vh; }
-        .fc-event { cursor: pointer; border: none !important; padding: 3px; font-weight: bold; border-radius: 4px; transition: opacity 0.2s; }
-        .line-through { text-decoration: line-through; opacity: 0.6; }
+        
+        /* Estilo Base dos Eventos */
+        .fc-event { 
+            cursor: pointer; 
+            border: none !important; 
+            padding: 2px 4px; 
+            font-weight: bold; 
+            border-radius: 4px; 
+            font-size: 0.85rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        /* Destaque Visual para STATUS */
+        .event-concluido {
+            border-left: 6px solid #059669 !important; /* Barra verde grossa */
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.1);
+        }
+        .event-cancelado {
+            border-left: 6px solid #4b5563 !important; /* Barra cinza grossa */
+            text-decoration: line-through;
+            opacity: 0.6;
+        }
+
         #loadingScreen { position: fixed; inset: 0; background: white; z-index: 9999; display: flex; align-items: center; justify-content: center; }
         .color-sq { width: 36px; height: 36px; border-radius: 6px; cursor: pointer; border: 3px solid transparent; transition: all 0.2s; }
         .color-sq.active { border-color: #000; transform: scale(1.1); box-shadow: 0 0 10px rgba(0,0,0,0.2); }
@@ -57,7 +78,7 @@
 
     <div id="bookingModal" class="modal-overlay">
         <div class="bg-white rounded-lg p-8 w-full max-w-md shadow-2xl relative">
-            <h2 id="modalTitle" class="text-xl font-bold mb-4 border-b pb-2">Agendar Serviço</h2>
+            <h2 id="modalTitle" class="text-xl font-bold mb-4 border-b pb-2 text-gray-800">Agendar Serviço</h2>
             <div class="space-y-4">
                 <label class="block text-sm font-medium">Profissional Responsável</label>
                 <select id="profSelect" class="w-full border rounded p-2 bg-gray-50"></select>
@@ -70,7 +91,7 @@
                     </select>
                 </div>
                 <input type="datetime-local" id="startTime" class="w-full border rounded p-2">
-                <label class="block text-sm font-medium text-gray-700">Cor no Painel</label>
+                <label class="block text-sm font-medium">Cor no Painel</label>
                 <input type="hidden" id="eventColor" value="#db2777">
                 <div id="colorPalette" class="flex flex-wrap gap-2"></div>
             </div>
@@ -110,7 +131,7 @@
         </div>
     </div>
 
-    <div id="confirmModal" class="modal-overlay" style="z-index: 1000;"><div class="bg-white rounded-lg p-6 w-full max-sm shadow-2xl text-center"><h3 class="text-xl font-bold mb-4">Excluir?</h3><div class="flex justify-center gap-3"><button onclick="closeConfirmModal()" class="px-4 py-2 text-gray-500">Voltar</button><button onclick="executeDelete()" class="bg-red-500 text-white px-6 py-2 rounded-lg font-bold">Sim</button></div></div></div>
+    <div id="confirmModal" class="modal-overlay" style="z-index: 1000;"><div class="bg-white rounded-lg p-6 w-full max-sm shadow-2xl text-center"><h3 class="text-xl font-bold mb-4 text-gray-800">Excluir?</h3><div class="flex justify-center gap-3"><button onclick="closeConfirmModal()" class="px-4 py-2 text-gray-500">Voltar</button><button onclick="executeDelete()" class="bg-red-500 text-white px-6 py-2 rounded-lg font-bold">Sim</button></div></div></div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -209,14 +230,25 @@
                         const d = doc.data();
                         let title = `${d.prof}: ${d.service}`;
                         let color = d.color || '#db2777';
-                        if (d.status === 'concluido') { title = "✅ " + title; }
-                        else if (d.status === 'cancelado') { title = "❌ " + title; color = "#9ca3af"; }
+                        let eventClasses = [];
+
+                        if (d.status === 'concluido') {
+                            title = "✅ [OK] " + title;
+                            eventClasses.push('event-concluido');
+                        } else if (d.status === 'cancelado') {
+                            title = "❌ [CANC] " + title;
+                            color = "#9ca3af";
+                            eventClasses.push('event-cancelado');
+                        }
+
                         calendar.addEvent({
-                            id: doc.id, title: title, start: d.start,
+                            id: doc.id,
+                            title: title,
+                            start: d.start,
                             end: new Date(new Date(d.start).getTime() + d.duration * 60000),
-                            backgroundColor: color, extendedProps: { ...d },
-                            classNames: d.status === 'cancelado' ? ['line-through'] : [],
-                            opacity: d.status === 'concluido' ? '0.5' : '1'
+                            backgroundColor: color,
+                            extendedProps: { ...d },
+                            classNames: eventClasses
                         });
                     });
                 }
@@ -288,7 +320,7 @@
                     const exStart = new Date(d.start); const exEnd = new Date(exStart.getTime() + d.duration * 60000);
                     if (newStart < exEnd && exStart < newEnd) conflito = true;
                 });
-                if (conflito) { alert("Conflito de horário!"); return; }
+                if (conflito) { alert("⚠️ Conflito de horário!"); return; }
                 const data = {
                     prof, service: document.getElementById('service').value, price: document.getElementById('price').value,
                     start: startStr, duration, color: document.getElementById('eventColor').value,
