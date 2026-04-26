@@ -84,10 +84,17 @@
 
         <div id="financeSection" class="hidden space-y-4">
             <div class="bg-white p-4 md:p-6 rounded-xl shadow-md">
-                <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Resumo da Semana (Concluídos)</h2>
+                <h2 class="text-xl font-bold text-gray-800 mb-4 border-b pb-2">Resumo Financeiro</h2>
+                
+                <div class="flex justify-between items-center mb-4 bg-gray-50 p-2 rounded-lg border">
+                    <button onclick="changeFinanceWeek(-1)" class="bg-white text-gray-700 px-3 py-1 rounded border shadow-sm hover:bg-gray-100 font-bold text-sm">⬅️ Anterior</button>
+                    <span id="financeWeekLabel" class="font-bold text-gray-700 text-sm text-center">Semana Atual</span>
+                    <button onclick="changeFinanceWeek(1)" class="bg-white text-gray-700 px-3 py-1 rounded border shadow-sm hover:bg-gray-100 font-bold text-sm">Próxima ➡️</button>
+                </div>
+
                 <p class="text-xs text-gray-400 mb-4">* Clique no profissional para ver detalhes</p>
                 <div id="financeList" class="divide-y">
-                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -163,7 +170,7 @@
         <div class="bg-white rounded-lg p-6 md:p-8 w-[95%] max-w-lg shadow-2xl relative overflow-y-auto max-h-[90vh]">
             <h2 id="financeDetailTitle" class="text-xl font-bold mb-4 border-b pb-2 text-pink-600"></h2>
             <div id="financeDetailContent" class="space-y-3">
-                </div>
+            </div>
             <div class="mt-6 pt-4 border-t text-right">
                 <button onclick="closeFinanceDetailModal()" class="bg-gray-800 text-white px-6 py-2 rounded-lg font-bold">Fechar</button>
             </div>
@@ -193,7 +200,8 @@
         let calendar;
         window.selectedEventId = null;
         let userData = {};
-        let financeDataByProf = {}; // Armazena detalhes para o modal financeiro
+        let financeDataByProf = {}; 
+        let currentWeekOffset = 0; // Nova variável para controlar a semana atual do financeiro
         const presetColors = ['#db2777', '#2563eb', '#10b981', '#f59e0b', '#7c3aed', '#dc2626', '#0891b2', '#4b5563', '#1e293b', '#000000'];
 
         window.togglePassword = () => {
@@ -220,29 +228,66 @@
                 finance.classList.remove('hidden');
                 btnFinance.className = "bg-pink-600 text-white px-4 py-2 rounded-lg font-bold shadow-md";
                 btnAgenda.className = "bg-gray-200 text-gray-700 px-4 py-2 rounded-lg font-bold shadow-md";
+                currentWeekOffset = 0; // Reseta para a semana atual sempre que abrir a aba
                 calculateFinance();
             }
         };
 
+        // Função para mudar a semana no botão
+        window.changeFinanceWeek = (direction) => {
+            currentWeekOffset += direction;
+            calculateFinance();
+        };
+
         async function calculateFinance() {
             const list = document.getElementById('financeList');
-            list.innerHTML = '<p class="p-4 text-center text-gray-500 animate-pulse">Calculando recebimentos da semana...</p>';
+            list.innerHTML = '<p class="p-4 text-center text-gray-500 animate-pulse">Calculando recebimentos...</p>';
 
+            // Calcula a data base baseada no offset (quantas semanas pra frente ou pra trás)
             const today = new Date();
+            today.setDate(today.getDate() + (currentWeekOffset * 7));
+
             const startOfWeek = new Date(today);
             startOfWeek.setDate(today.getDate() - today.getDay());
             startOfWeek.setHours(0, 0, 0, 0);
 
-            const q = query(collection(db, "appointments"), where("status", "==", "concluido"));
+            const endOfWeek = new Date(startOfWeek);
+            endOfWeek.setDate(startOfWeek.getDate() + 6);
+            endOfWeek.setHours(23, 59, 59, 999);
+
+            // Atualiza o texto informando qual semana está sendo exibida
+            const label = document.getElementById('financeWeekLabel');
+            if(label) {
+                if (currentWeekOffset === 0) {
+                    label.innerText = "Semana Atual";
+                } else {
+                    label.innerText = `${startOfWeek.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})} até ${endOfWeek.toLocaleDateString('pt-BR', {day:'2-digit', month:'2-digit'})}`;
+                }
+            }
+
+            // MUDANÇA DE PRIVACIDADE: Filtra se não for admin
+            let q;
+            if (userData.role !== 'admin') {
+                q = query(
+                    collection(db, "appointments"), 
+                    where("status", "==", "concluido"),
+                    where("prof", "==", userData.name)
+                );
+            } else {
+                q = query(collection(db, "appointments"), where("status", "==", "concluido"));
+            }
+
             const snap = await getDocs(q);
             
             let totals = {};
-            financeDataByProf = {}; // Limpa dados anteriores
+            financeDataByProf = {}; 
 
             snap.forEach(doc => {
                 const d = doc.data();
                 const eventDate = new Date(d.start);
-                if (eventDate >= startOfWeek) {
+                
+                // Filtra para garantir que os ganhos estão dentro da semana selecionada
+                if (eventDate >= startOfWeek && eventDate <= endOfWeek) {
                     if (!totals[d.prof]) {
                         totals[d.prof] = { bruto: 0, comissao: 0 };
                         financeDataByProf[d.prof] = [];
@@ -266,7 +311,7 @@
             list.innerHTML = "";
             const keys = Object.keys(totals);
             if (keys.length === 0) {
-                list.innerHTML = "<p class='p-6 text-center text-gray-400'>Nenhum serviço concluído nesta semana.</p>";
+                list.innerHTML = "<p class='p-6 text-center text-gray-400'>Nenhum serviço concluído neste período.</p>";
                 return;
             }
 
@@ -410,7 +455,15 @@
                 if (s) {
                     const cur = s.value; s.innerHTML = '<option value="">Selecione...</option>';
                     snap.forEach(doc => { if (doc.data().name) s.innerHTML += `<option value="${doc.data().name}">${doc.data().name}</option>`; });
-                    s.value = cur;
+                    
+                    // MUDANÇA DE PRIVACIDADE: Trava o seletor no nome do usuário se não for admin
+                    if (userData.role !== 'admin') {
+                        s.value = userData.name;
+                        s.disabled = true;
+                    } else {
+                        s.value = cur;
+                        s.disabled = false;
+                    }
                 }
             });
         }
